@@ -1,0 +1,15 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin-top: 50px;
+}
+img {
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+}
+.error {
+    color: red;
+    font-weight: bold;
+}
+

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Login</title>
+</head>
+<body>
+    <h2>Owner Login</h2>
+    {% if error %}
+        <p style="color:red;">{{ error }}</p>
+    {% endif %}
+    <form method="post">
+        <input type="password" name="password" placeholder="Enter admin password" required>
+        <button type="submit">Login</button>
+    </form>
+</body>
+</html>

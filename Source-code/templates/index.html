@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Train Your Model</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1e1e2f;
+      color: white;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .box-container {
+      background: #2e2e42;
+      padding: 20px;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 700px;
+      min-height: 180px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-content: flex-start;
+    }
+    .folder-button, .plus-display {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .folder-button {
+      background: #00bcd4;
+      color: white;
+      font-weight: bold;
+      font-size: 0.85rem;
+      border: none;
+    }
+    .plus-display {
+      border: 2px dashed #00bcd4;
+      color: #00bcd4;
+      font-size: 1.5rem;
+      background-color: #ffffff22;
+      pointer-events: none;
+      position: absolute;
+      z-index: 1;
+    }
+    .file-upload-wrapper {
+      position: relative;
+    }
+    .file-upload-wrapper input[type="file"] {
+      opacity: 0;
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      z-index: 2;
+      cursor: pointer;
+    }
+    .submit-btn {
+      padding: 10px 20px;
+      background-color: #00bcd4;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 1rem;
+    }
+    input[type="number"] {
+      padding: 8px;
+      border-radius: 5px;
+      margin-top: 10px;
+      border: none;
+      width: 80px;
+    }
+    .preview-container {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 5px 0 20px;
+    }
+    .preview-container img {
+      height: 50px;
+      border-radius: 5px;
+    }
+    #loading {
+      margin-top: 20px;
+      font-size: 1.2rem;
+      color: #00ffcc;
+      display: none;
+    }
+    .warning {
+      background: #333344;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      color: #ffd166;
+    }
+  </style>
+</head>
+<body>
+  <h1>Train Your Image Classifier</h1>
+  <div class="warning">⚠️ Recommended: Less than 100 images per class for best performance.</div>
+
+  <div class="box-container" id="buttonBox">
+    <div class="file-upload-wrapper">
+      <input type="file" webkitdirectory directory onchange="handleFolderUpload(this)" />
+      <div class="plus-display">+</div>
+    </div>
+  </div>
+  <!-- CSV Upload Section -->
+<div style="margin-top: 20px; text-align: center;">
+  <label class="submit-btn" style="background:#4CAF50; cursor:pointer;">
+    📄 Upload CSV
+    <input type="file" id="csv_file" accept=".csv" style="display:none;">
+  </label>
+  <button class="submit-btn" style="background:#4CAF50;" onclick="uploadCSV()">Upload</button>
+</div>
+
+
+  <div id="previewArea"></div>
+
+  <button class="submit-btn" onclick="submitFolders()">Upload & Extract Features</button>
+
+  <div id="loading">⏳ Training in progress... Please wait.</div>
+
+  <script>
+    const uploadedFolders = new Map();
+    function handleFolderUpload(input) {
+      const wrapper = input.parentElement;
+      const files = [...input.files];
+      if (files.length === 0) return;
+      const folderName = files[0].webkitRelativePath.split("/")[0];
+      uploadedFolders.set(folderName, files);
+      const folderEntry = document.createElement("div");
+      folderEntry.className = "folder-button";
+      folderEntry.textContent = folderName;
+      wrapper.replaceWith(folderEntry);
+      const previewBlock = document.createElement("div");
+      const label = document.createElement("p");
+      label.textContent = `📁 ${folderName}`;
+      previewBlock.appendChild(label);
+      const previewContainer = document.createElement("div");
+      previewContainer.className = "preview-container";
+      files.slice(0, 4).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = document.createElement("img");
+          img.src = e.target.result;
+          previewContainer.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      });
+      previewBlock.appendChild(previewContainer);
+      document.getElementById("previewArea").appendChild(previewBlock);
+      // Add new +
+      const newWrapper = document.createElement("div");
+      newWrapper.className = "file-upload-wrapper";
+      const newInput = document.createElement("input");
+      newInput.type = "file";
+      newInput.setAttribute("webkitdirectory", "");
+      newInput.setAttribute("directory", "");
+      newInput.onchange = () => handleFolderUpload(newInput);
+      const plusDiv = document.createElement("div");
+      plusDiv.className = "plus-display";
+      plusDiv.textContent = "+";
+      newWrapper.appendChild(newInput);
+      newWrapper.appendChild(plusDiv);
+      document.getElementById("buttonBox").appendChild(newWrapper);
+    }
+    function submitFolders() {
+      const formData = new FormData();
+      document.getElementById("loading").style.display = "block";
+      for (let [folderName, files] of uploadedFolders.entries()) {
+          for (let file of files) {
+              // append folder path + filename so backend knows folder structure
+              formData.append(`${folderName}/${file.name}`, file);
+          }
+      }
+      fetch("/upload", {
+          method: "POST",
+          body: formData
+      })
+      .then(res => {
+          document.getElementById("loading").style.display = "none";
+          console.log("✅ Upload finished");
+      })
+      .catch(err => {
+          alert("Error: " + err);
+          document.getElementById("loading").style.display = "none";
+      });
+  }
+function uploadCSV() {
+  const fileInput = document.getElementById("csv_file");
+  if (!fileInput.files.length) {
+    alert("Please select a CSV file first.");
+    return;
+  }
+  const formData = new FormData();
+  formData.append("csv_file", fileInput.files[0]);
+  document.getElementById("loading").textContent = "⏳ Uploading CSV... Please wait.";
+  document.getElementById("loading").style.display = "block";
+  fetch("/upload", {
+    method: "POST",
+    body: formData
+  })
+  .then(res => {
+    if (res.ok) {
+      alert("✅ CSV uploaded successfully!");
+    } 
+  })
+  .catch(err => {
+    alert("Error uploading CSV: " + err);
+  })
+  .finally(() => {
+    document.getElementById("loading").style.display = "none";
+    fileInput.value = "";
+    document.getElementById("loading").textContent = "⏳ Training in progress... Please wait.";
+  });
+}
+  </script>
+</body>
+</html>

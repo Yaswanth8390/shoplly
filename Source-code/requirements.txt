@@ -1,0 +1,11 @@
+flask
+torch
+torch-vision
+numpy
+Pillow
+clip-anytorch
+scikit-learn
+werkzeug
+supabase
+pandas
+SQLAlchemy

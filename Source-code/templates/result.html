@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shoplly Demo - Smart Search</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #header { margin-top: 80px; text-align: center; }
+        #logo { width: 200px; height: auto; margin-bottom: 20px; }
+        #search_section { display: flex; justify-content: center; margin-bottom: 20px; width: 100%; max-width: 600px; }
+        #search_query { width: 80%; padding: 12px 15px; font-size: 18px; border: 1px solid #ccc; border-radius: 24px 0 0 24px; outline: none; }
+        #search_button { padding: 12px 20px; font-size: 18px; border: 1px solid #4CAF50; border-left: none; background: #808080; color: white; border-radius: 0 24px 24px 0; cursor: pointer; }
+        #search_button:hover { background: #e9e9f1; }
+        #upload_section { display: flex; justify-content: center; margin-bottom: 30px; gap: 10px; }
+        .upload_button { display: inline-block; cursor: pointer; font-size: 20px; padding: 8px 12px; background: #f0f0f0; border-radius: 8px; border: 1px solid #ccc; margin-right: 10px; transition: background 0.2s; }
+        .upload_button:hover { background: #e0e0e0; }
+        /* ✅ FIX: allow expanded cards to overflow properly */
+        #results_gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+            justify-items: center;
+            width: 90%;
+            max-width: 1100px;
+            margin-top: 20px;
+            padding-bottom: 60px;
+            overflow: visible; /* ✅ FIX */
+            position: relative; /* ✅ FIX */
+        }
+        .result_card {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            width: 180px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease; /* ✅ smoother */
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            z-index: 1;
+        }
+        .result_card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 10px 22px rgba(0,0,0,0.14);
+        }
+        .result_card img {
+            width: 160px;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 8px;
+            transition: all 0.25s ease;
+            display: block;
+            margin: 0 auto;
+        }
+        .info_panel { margin-top: 10px; }
+        .product_name {
+            font-weight: 600;
+            color: #222;
+            font-size: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .product_price {
+            color: #2E8B57;
+            font-weight: 600;
+            margin-top: 6px;
+            font-size: 14px;
+        }
+        .result_card.expanded {
+  width: 180px;
+  height: auto;
+  transform: none;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.28);
+  z-index: 999;
+}
+       .result_card.expanded img {
+  width: 100%;
+  height: auto;
+}
+        .result_card.expanded .product_name {
+            white-space: normal;
+            overflow: visible;
+            font-size: 18px;
+            line-height: 1.2;
+        }
+        .result_card .info_panel {
+            max-width: 240px;
+        }
+        @media (max-width: 700px) {
+            .result_card.expanded { width: 95vw; flex-direction: column; align-items: center; }
+            .result_card.expanded img { width: 80%; height: auto; }
+            .result_card.expanded .info_panel { max-width: 90%; text-align: center; }
+            .result_card.expanded .product_name { text-align: center; }
+        }
+        #loading { display: none; color: #555; text-align: center; margin-top: 10px; }
+        #footer { margin: 50px 0; color: #888; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <img id="logo" src="{{ url_for('static', filename='11.png') }}" alt="Shoplly Logo">
+</div>
+
+<div id="search_section">
+    <input type="text" id="search_query" placeholder="Search products like 'brown sofa', 'blue chair', 'iron man figure'">
+    <button type="submit" id="search_button" onclick="performTextSearch()">🔍</button>
+</div>
+
+<div id="upload_section">
+    <label class="upload_button">
+        <img src="{{ url_for('static', filename='Shoplly_Icon.png') }}" width="20">
+        <input type="file" id="image_upload" accept="image/*" style="display:none;">
+    </label>
+    <button onclick="performImageSearch()">Find Similar</button>
+</div>
+
+<p id="loading">Searching... please wait.</p>
+
+<div id="results_gallery"></div>
+
+<div id="footer">Shoplly Demo - Powered by CLIP AI</div>
+
+<script>
+    document.getElementById("search_query").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault(); // Prevent default Enter key behavior
+            document.getElementById("search_button").click(); // Trigger the button's click event
+        }
+    });
+    function performTextSearch() {
+        const query = document.getElementById("search_query").value.trim();
+        if (!query) { alert("Enter a search query."); return; }
+        document.getElementById("loading").style.display = "block";
+        fetch("/chat_search", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ query: query })
+        })
+        .then(r => r.json())
+        .then(data => displayResults(data.results))
+        .catch(err => alert("Error: " + err))
+        .finally(() => { document.getElementById("loading").style.display = "none"; });
+    }
+    function performImageSearch() {
+        const fileInput = document.getElementById("image_upload");
+        if (fileInput.files.length === 0) { alert("Select an image to search."); return; }
+        const formData = new FormData();
+        formData.append("query_image", fileInput.files[0]);
+        document.getElementById("loading").style.display = "block";
+        fetch("/image_search", { method: "POST", body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert("Error: " + data.error); return; }
+            displayResults(data.results);
+        })
+        .catch(err => alert("Error: " + err))
+        .finally(() => { document.getElementById("loading").style.display = "none"; });
+    }
+    function displayResults(results) {
+        
+    const gallery = document.getElementById("results_gallery");
+    gallery.innerHTML = "";
+    console.log("Result items:", results);
+    if (!results || results.length === 0) {
+        gallery.innerHTML = "<p>No results found.</p>";
+        return;
+    }
+    results.forEach((item) => {
+        const div = document.createElement("div");
+        div.className = "result_card";
+        // ✅ Build all non-empty attributes dynamically (except the main ones)
+        let extraInfoHTML = "";
+        for (const [key, val] of Object.entries(item)) {
+            if (["filename", "product_name", "price", "url"].includes(key)) continue;
+            if (val == null) continue;
+            const strVal = String(val).trim();
+            if (!strVal || strVal.toLowerCase() === "nan") continue;
+            const prettyKey = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+            extraInfoHTML += <div class="extra_attr"><b>${escapeHTML(prettyKey)}:</b> ${escapeHTML(strVal)}</div>;
+        }
+        div.innerHTML = `
+            <img src="${item.url}" alt="${escapeHTML(item.product_name || '')}">
+            <div class="info_panel">
+            <div class="product_name">${escapeHTML(item.product_name || '')}</div>
+            <div class="product_price">${escapeHTML(item.price || '—')}</div>
+            ${
+                item.confidence
+                    ? `<div class="confidence" style="margin-top:6px; font-size:13px; font-weight:600; color:${getConfidenceColor(item.confidence)};">
+                        Confidence: ${escapeHTML(item.confidence)}
+                    </div>`
+                    : ""
+            }
+            ${
+                extraInfoHTML
+                    ? <div class="extra_info" style="display:none; margin-top:8px; font-size:13px; color:#555;">${extraInfoHTML}</div>
+                    : ""
+            }
+        </div>
+        <a href="${item.url}" target="_blank" style="position:absolute; top:0; left:0; width:100%; height:100%;"></a>
+        `;
+        gallery.appendChild(div);
+        // ✅ Hover expand logic
+        let hoverTimer = null;
+        div.addEventListener('mouseenter', () => {
+            hoverTimer = setTimeout(() => {
+                div.classList.add('expanded');
+                const extra = div.querySelector('.extra_info');
+                if (extra) extra.style.display = 'block';
+            }, 1500);
+        });
+        div.addEventListener('mouseleave', () => {
+            clearTimeout(hoverTimer);
+            hoverTimer = null;
+            div.classList.remove('expanded');
+            const extra = div.querySelector('.extra_info');
+            if (extra) extra.style.display = 'none';
+        });
+    });
+}
+function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+}
+function getConfidenceColor(confidenceStr) {
+    const value = parseFloat(confidenceStr.replace('%', '')) || 0;
+    if (value >= 85) return "#2ecc71"; // bright green for high match
+    if (value >= 70) return "#f1c40f"; // yellow for moderate match
+    return "#e74c3c"; // red for weak match
+}
+</script>
+
+
+</body>
+</html>
