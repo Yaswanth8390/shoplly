@@ -28,8 +28,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET", "supersecretkey")
 
 # Supabase credentials - use env vars in production
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://khrfhivjmaqopthxccxw.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtocmZoaXZqbWFxb3B0aHhjY3h3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDQyMDUxMywiZXhwIjoyMDc1OTk2NTEzfQ.eGNCn5HZkhmHvES2Z6vtnLtxcs7a0_Mo6gNPEUpDjZc")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "API_KEY")
 BUCKET = os.environ.get("SUPABASE_BUCKET", "uploads")
 
 # Initialize Supabase client
